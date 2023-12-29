@@ -1,5 +1,5 @@
-import { ChangeEvent, useState } from 'react';
-import { localStorageSearchKey } from './constants';
+import { ChangeEvent, useCallback, useEffect, useState } from 'react';
+import { loadingMessage, localStorageSearchKey } from './constants';
 import { getSearchItems } from './requests';
 import { Person } from './types';
 import Search from './components/Search/Search';
@@ -14,30 +14,43 @@ const primaryValue = localStorage.getItem(localStorageSearchKey);
 const App = () => {
   const [searchValue, setSearchValue] = useState(primaryValue || '');
   const [queryData, setQueryData] = useState<Person[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const handleSearchInputChange = (evt: ChangeEvent<HTMLInputElement>) => {
-    setSearchValue(evt.target.value);
-  };
+  useEffect(() => {
+    handleRequest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const handleSearch = async () => {
-    const trimmedValue = trimValue(searchValue);
-    localStorage.setItem(localStorageSearchKey, trimmedValue);
+  const handleSearchInputChange = useCallback(
+    (evt: ChangeEvent<HTMLInputElement>) => {
+      const trimmedValue = trimValue(evt.target.value);
+      setSearchValue(trimmedValue);
+    },
+    []
+  );
+
+  const handleRequest = useCallback(async () => {
     setLoading(true);
-    const result = await getSearchItems(trimmedValue);
+    const result = await getSearchItems(searchValue);
     setQueryData(result);
     setLoading(false);
-  };
+  }, [searchValue]);
+
+  const handleSearch = useCallback(() => {
+    localStorage.setItem(localStorageSearchKey, searchValue);
+    handleRequest();
+  }, [searchValue, handleRequest]);
+
   return (
     <div className="app">
       <ErrorBoundary>
+        <ErrorTestButton />
         <Search
           searchValue={searchValue}
           handleSearchInputChange={handleSearchInputChange}
           handleSearch={handleSearch}
         />
-        {loading ? 'Loading...' : <Display data={queryData} />}
-        <ErrorTestButton />
+        {loading ? loadingMessage : <Display data={queryData} />}
       </ErrorBoundary>
     </div>
   );
